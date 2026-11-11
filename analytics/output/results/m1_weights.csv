@@ -1,0 +1,13 @@
+﻿,entropy_weight
+acc_branch,0.0963
+acc_atm,0.097
+acc_mobile,0.0738
+use_deposit,0.0937
+use_insurance,0.0929
+use_fund,0.1077
+use_credit,0.1018
+cov_pension,0.0425
+cov_annuity,0.1134
+cov_medical,0.1122
+qua_complaint,0.0255
+qua_satisfaction,0.0432

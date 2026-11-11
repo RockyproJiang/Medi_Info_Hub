@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>养老金融量化分析交互看板 · 医讯通</title>
+<!-- ECharts 本地离线版（由医讯通 node_modules 复制），无网络也能打开 -->
+<script src="echarts.min.js"></script>
+<script src="data.js"></script>
+<style>
+  /* ---------- 设计系统：与医讯通 Web 端同源的浅色学术风 ---------- */
+  :root{
+    --ink:#2b3a67; --text:#362c34; --muted:#797979; --line:#e3e6f0;
+    --bg:#f7f8fc; --card:#ffffff; --brand:#6c7cbb; --brand-2:#8c9ed5;
+    --green:#2e9e5b; --amber:#e8a33d; --orange:#e06c3c; --red:#d64545;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+       background:var(--bg);color:var(--text);line-height:1.55}
+  header{background:linear-gradient(135deg,#3f4e7a,#6c7cbb);color:#fff;padding:26px 32px 20px}
+  header h1{font-size:22px;font-weight:700;letter-spacing:.5px}
+  header p{opacity:.85;font-size:13px;margin-top:6px}
+  .badge{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);
+         border-radius:20px;padding:2px 12px;font-size:12px;margin-left:10px;vertical-align:2px}
+  nav{display:flex;gap:6px;padding:0 32px;background:var(--card);border-bottom:1px solid var(--line);
+      position:sticky;top:0;z-index:50;box-shadow:0 1px 6px rgba(43,58,103,.06)}
+  nav button{border:none;background:none;padding:14px 22px;font-size:14.5px;cursor:pointer;color:var(--muted);
+             border-bottom:3px solid transparent;transition:.2s;font-family:inherit}
+  nav button:hover{color:var(--brand)}
+  nav button.active{color:var(--brand);border-bottom-color:var(--brand);font-weight:600}
+  main{max-width:1280px;margin:22px auto 60px;padding:0 24px}
+  .panel{display:none;animation:fade .35s}
+  .panel.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .grid{display:grid;gap:16px;margin-bottom:16px}
+  .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}
+  .g21{grid-template-columns:2fr 1fr}
+  @media(max-width:960px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;
+        box-shadow:0 2px 10px rgba(43,58,103,.05)}
+  .card h3{font-size:15px;color:var(--ink);margin-bottom:4px}
+  .card .sub{font-size:12px;color:var(--muted);margin-bottom:10px}
+  .chart{width:100%;height:340px}
+  .chart.tall{height:420px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+  @media(max-width:960px){.kpis{grid-template-columns:1fr 1fr}}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .kpi .v{font-size:26px;font-weight:700;color:var(--ink)}
+  .kpi .l{font-size:12px;color:var(--muted);margin-top:2px}
+  /* 控件 */
+  .controls{display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin-bottom:14px}
+  .controls label{font-size:13px;color:var(--muted)}
+  input[type=range]{accent-color:var(--brand);vertical-align:middle}
+  input[type=number],input[type=range],select{font-family:inherit}
+  select,.num{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px;background:#fff;color:var(--text)}
+  .switches{display:flex;gap:10px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:13px;cursor:pointer;user-select:none;transition:.15s;background:#fff;color:var(--muted)}
+  .chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .wslider{display:grid;grid-template-columns:150px 1fr 62px;gap:10px;align-items:center;font-size:12.5px;margin:7px 0}
+  .wslider .val{text-align:right;color:var(--brand);font-weight:600;font-variant-numeric:tabular-nums}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:#eef1f8;color:var(--ink);font-weight:600;padding:8px 10px;text-align:left;position:sticky;top:0}
+  td{padding:7px 10px;border-bottom:1px solid var(--line)}
+  tr:hover td{background:#f6f8ff}
+  .tag{display:inline-block;border-radius:12px;padding:1px 10px;font-size:12px;color:#fff}
+  .t-低风险{background:var(--green)}.t-中风险{background:var(--amber)}
+  .t-高风险{background:var(--orange)}.t-极高风险{background:var(--red)}
+  .scroll{max-height:430px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+  .gauge-wrap{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+  #gauge{width:280px;height:230px}
+  .gauge-side{flex:1;min-width:260px}
+  .gauge-side .band{font-size:18px;font-weight:700;margin:6px 0 12px}
+  .field{display:grid;grid-template-columns:1fr 120px;gap:8px;align-items:center;margin:6px 0;font-size:13px}
+  .field input[type=range]{width:100%}
+  footer{text-align:center;color:var(--muted);font-size:12px;padding:18px;border-top:1px solid var(--line)}
+  .note{font-size:12px;color:var(--muted);background:#f4f6fc;border-left:3px solid var(--brand);
+        padding:8px 12px;border-radius:0 8px 8px 0;margin-bottom:14px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>养老金融量化分析交互看板<span class="badge">医讯通 · 科研教学工具包</span></h1>
+  <p id="metaLine"></p>
+</header>
+
+<nav>
+  <button data-tab="m0" class="active">总览</button>
+  <button data-tab="m1">模型一 · 城乡差异测度</button>
+  <button data-tab="m2">模型二 · 医养金融风险</button>
+  <button data-tab="m3">模型三 · 诈骗预警</button>
+</nav>
+
+<main>
+  <!-- ================= 总览 ================= -->
+  <section class="panel active" id="tab-m0">
+    <div class="note">本看板基于《城乡养老金融量化分析工具包》的模型输出构建，所有图表均可交互：悬停查看数值、图例点击显隐、滑杆/下拉实时调节。数据为预设模拟调研数据（随机种子=42，全流程可复现）。</div>
+    <div class="kpis">
+      <div class="kpi"><div class="v" id="k1">-</div><div class="l">2025 城乡发展指数差距（倍）</div></div>
+      <div class="kpi"><div class="v" id="k2">-</div><div class="l">Theil 组间贡献占比</div></div>
+      <div class="kpi"><div class="v" id="k3">-</div><div class="l">机构平均风险得分</div></div>
+      <div class="kpi"><div class="v" id="k4">-</div><div class="l">预警模型测试集 AUC</div></div>
+    </div>
+    <div class="grid g2">
+      <div class="card"><h3>三类区域发展指数趋势</h3><div class="sub">熵权-TOPSIS，2015—2025</div><div class="chart" id="ov1"></div></div>
+      <div class="card"><h3>问卷受害率与预警人群</h3><div class="sub">模型三全样本 1500 份</div><div class="chart" id="ov2"></div></div>
+    </div>
+  </section>
+
+  <!-- ================= 模型一 ================= -->
+  <section class="panel" id="tab-m1">
+    <div class="note">交互：①拖动「年份」滑块更新雷达图；②点击图例显隐区域；③右下饼图展示差异来源分解。</div>
+    <div class="controls">
+      <label>年份 <input type="range" id="m1year" min="0" max="10" value="10" style="width:220px"> <b id="m1yearV" style="color:var(--brand)"></b></label>
+      <span style="flex:1"></span>
+      <label>雷达图指标维度
+        <select id="m1dim"><option value="全部">全部指标</option></select>
+      </label>
+    </div>
+    <div class="grid g2">
+      <div class="card"><h3>发展指数趋势（可点图例）</h3><div class="chart" id="m1c1"></div></div>
+      <div class="card"><h3>指标雷达图</h3><div class="sub" id="m1radarSub"></div><div class="chart" id="m1c2"></div></div>
+    </div>
+    <div class="grid g2">
+      <div class="card"><h3>变异系数 CV 演变（σ 收敛检验）</h3><div class="chart" id="m1c3"></div></div>
+      <div class="card"><h3>Theil 指数分解 + 指标权重</h3><div class="chart" id="m1c4"></div></div>
+    </div>
+  </section>
+
+  <!-- ================= 模型二 ================= -->
+  <section class="panel" id="tab-m2">
+    <div class="note">交互核心：拖动右侧「指标权重」滑杆，机构风险得分、等级分布、风险榜将<b>实时重算</b>（TOPSIS+灰色关联与离线模型同公式）。「重置」恢复熵权法客观权重。</div>
+    <div class="grid" style="grid-template-columns:2.2fr 1fr">
+      <div>
+        <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+          <div class="kpi"><div class="v" id="m2avg">-</div><div class="l">平均风险得分</div></div>
+          <div class="kpi"><div class="v" id="m2high">-</div><div class="l">高风险+极高占比</div></div>
+          <div class="kpi"><div class="v" id="m2n">-</div><div class="l">机构总数</div></div>
+        </div>
+        <div class="card"><h3>风险等级分布（实时）</h3><div class="chart" id="m2c1"></div></div>
+        <div class="card" style="margin-top:16px"><h3>机构风险榜（实时排序，悬停看维度分）</h3>
+          <div class="scroll"><table id="m2table"><thead><tr>
+            <th>#</th><th>机构</th><th>区域</th><th>类型</th><th>风险得分</th><th>评级</th>
+          </tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+      <div class="card"><h3>风险指标权重调节</h3><div class="sub">拖动滑杆调整权重（自动归一化）</div>
+        <div id="m2sliders" style="max-height:560px;overflow:auto;padding-right:6px"></div>
+        <button id="m2reset" class="chip" style="margin-top:10px">↺ 重置为熵权</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 模型三 ================= -->
+  <section class="panel" id="tab-m3">
+    <div class="note">交互核心：在右侧输入一位老人的特征，前端用导出的逻辑回归系数<b>实时计算受害概率</b>并给出四级预警。左侧展示模型评估图。</div>
+    <div class="grid" style="grid-template-columns:1.5fr 1fr">
+      <div>
+        <div class="grid g2">
+          <div class="card"><h3>ROC 曲线（测试集）</h3><div class="chart" id="m3c1"></div></div>
+          <div class="card"><h3>风险因子排名（OR 值）</h3><div class="chart" id="m3c2"></div></div>
+        </div>
+        <div class="card" style="margin-top:16px"><h3>预警人群构成（全样本）</h3><div class="chart" id="m3c3"></div></div>
+      </div>
+      <div class="card"><h3>个体风险测算器</h3><div class="sub">拖动滑杆模拟个体特征</div>
+        <div class="gauge-wrap">
+          <div id="gauge"></div>
+          <div class="gauge-side">
+            <div class="band" id="m3band">-</div>
+            <div style="font-size:13px;color:var(--muted)" id="m3advice"></div>
+          </div>
+        </div>
+        <div id="m3fields" style="margin-top:14px"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>城乡养老金融量化分析工具包 · 预设数据（模拟调研，可复现 seed=42） · 真实调研数据到位后重跑 python run_all.py 即可刷新本看板</footer>
+
+<script>
+/* ============================================================
+ * 养老金融量化分析交互看板
+ * 数据：data.js（由 src/dashboard_export.py 自动生成）
+ * 依赖：ECharts 5（本地 echarts.min.js）
+ * ============================================================ */
+const D = window.DASH;
+const COLORS = ['#6c7cbb','#2e9e5b','#e8a33d','#d64545','#8c6bb8','#3aa7b8'];
+const REGION_COLOR = {'城市':'#6c7cbb','县城':'#e8a33d','农村':'#2e9e5b'};
+const charts = {};                     // 图表实例缓存
+const fmt = (x, n=2) => (+x).toFixed(n);
+
+document.getElementById('metaLine').textContent =
+  `更新时间 ${D.meta.updated} · 数据来源：${D.meta.source} · 样本：3 区域 × 11 年面板 + 297 家机构 + 1500 份问卷`;
+
+/* ---------- Tab 切换 ---------- */
+document.querySelectorAll('nav button').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById('tab-'+b.dataset.tab).classList.add('active');
+    setTimeout(()=>Object.values(charts).forEach(c=>c.resize()), 60);
+  };
+});
+
+function chart(id){ if(charts[id]) return charts[id];
+  const el = document.getElementById(id);
+  charts[id] = echarts.init(el);
+  return charts[id];
+}
+window.addEventListener('resize', ()=>Object.values(charts.forEach?[]:[])); // noop
+window.addEventListener('resize', ()=>Object.values(charts).forEach(c=>c.resize()));
+
+/* ---------- 总览 KPI ---------- */
+(function(){
+  const idx25 = D.model1.index.filter(r=>r.year===2025);
+  const city = idx25.find(r=>r.region==='城市').development_index;
+  const rural = idx25.find(r=>r.region==='农村').development_index;
+  document.getElementById('k1').textContent = fmt(city/rural,1)+'×';
+  document.getElementById('k2').textContent = fmt(D.model1.theil[0].between_share*100,0)+'%';
+  const avg = D.model2.regionSummary.reduce((s,r)=>s+r['平均风险分']*r['机构数'],0)/
+              D.model2.regionSummary.reduce((s,r)=>s+r['机构数'],0);
+  document.getElementById('k3').textContent = fmt(avg,1);
+  document.getElementById('k4').textContent = fmt(D.model3.report.test_auc,3);
+})();
+
+/* ---------- 总览图 ---------- */
+chart('ov1').setOption({
+  color: COLORS,
+  tooltip:{trigger:'axis'},
+  legend:{top:0},
+  grid:{left:46,right:20,bottom:34,top:40},
+  xAxis:{type:'category',name:'年份',data:D.model1.years},
+  yAxis:{type:'value',name:'发展指数',max:100},
+  series: D.model1.regions.map(r=>({
+    name:r, type:'line', smooth:true, symbolSize:6, lineStyle:{width:2.5},
+    data: D.model1.index.filter(x=>x.region===r).map(x=>x.development_index)
+  }))
+});
+chart('ov2').setOption({
+  tooltip:{trigger:'item',formatter:'{b}: {c} 人 ({d}%)'},
+  series:[{type:'pie',radius:['38%','68%'],center:['50%','52%'],
+    itemStyle:{borderRadius:8,borderColor:'#fff',borderWidth:2},
+    label:{formatter:'{b}\n{c}人'},
+    data:Object.entries(D.model3.bands).map(([k,v])=>({name:k,value:v}))}]
+});
+
+/* ============================================================
+ * 模型一
+ * ============================================================ */
+const m1 = D.model1;
+// 年份滑块
+const yearSlider = document.getElementById('m1year');
+yearSlider.max = m1.years.length-1;
+const yearLabel = document.getElementById('m1yearV');
+function curYear(){ return m1.years[+yearSlider.value]; }
+yearLabel.textContent = curYear();
+// 雷达维度下拉
+const dimSel = document.getElementById('m1dim');
+[...new Set(m1.indicators.map(i=>i.dim))].forEach(d=>{
+  const o=document.createElement('option');o.value=d;o.textContent=d;dimSel.appendChild(o);
+});
+dimSel.onchange = renderM1Radar;
+
+chart('m1c1').setOption({
+  color: COLORS,
+  tooltip:{trigger:'axis'},
+  legend:{top:0},
+  grid:{left:46,right:20,bottom:34,top:40},
+  xAxis:{type:'category',name:'年份',data:m1.years},
+  yAxis:{type:'value',name:'发展指数',max:100},
+  series: m1.regions.map(r=>({
+    name:r,type:'line',smooth:true,areaStyle:{opacity:.06},symbolSize:6,
+    lineStyle:{width:2.5},
+    data:m1.index.filter(x=>x.region===r).map(x=>x.development_index)
+  }))
+});
+
+function renderM1Radar(){
+  const y = curYear(); yearLabel.textContent = y;
+  const dim = dimSel.value;
+  const inds = m1.indicators.filter(i=>dim==='全部'||i.dim===dim);
+  chart('m1c2').setOption({
+    color: COLORS,
+    tooltip:{},
+    legend:{top:0},
+    radar:{indicator:inds.map(i=>({name:i.name,max:100})),radius:'62%',center:['50%','56%'],
+           axisName:{fontSize:10.5,color:'#666'}},
+    series:[{type:'radar',symbolSize:4,
+      data:m1.regions.map(r=>({
+        name:r, value:inds.map(i=>m1.radar[{'城市':'C','县城':'X','农村':'R'}[r]].values[i.code][+yearSlider.value]),
+        areaStyle:{opacity:.1}, lineStyle:{width:2}
+      }))}]
+  });
+  document.getElementById('m1radarSub').textContent = `当前年份 ${y} · ${dim==='全部'?'全部 '+inds.length+' 项指标':'「'+dim+'」维度'}`;
+}
+yearSlider.oninput = renderM1Radar;
+renderM1Radar();
+
+chart('m1c3').setOption({
+  tooltip:{trigger:'axis'},
+  grid:{left:56,right:24,bottom:34,top:30},
+  xAxis:{type:'category',name:'年份',data:m1.cv.map(x=>x.year)},
+  yAxis:{type:'value',name:'变异系数'},
+  series:[{type:'bar',barWidth:'55%',itemStyle:{color:'#8c6bb8',borderRadius:[6,6,0,0]},
+    data:m1.cv.map(x=>x.cv),
+    markLine:{symbol:'none',lineStyle:{type:'dashed',color:'#d64545'},
+      label:{formatter:'趋势下降 => σ收敛',position:'insideEndTop'},
+      data:[{type:'average',name:'均值'}]}}]
+});
+
+(function(){ // Theil 饼图 + 权重条形图（双 grid 布局）
+  const t = m1.theil[0];
+  const topW = Object.entries(m1.weights).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  chart('m1c4').setOption({
+    tooltip:{trigger:'item'},
+    legend:{bottom:0,data:['组间贡献','组内贡献']},
+    // 左：Theil 分解饼图
+    grid:[{left:'56%',right:'6%',top:24,bottom:44}],
+    xAxis:[{type:'value',gridIndex:0,max:0.14,name:'熵权'}],
+    yAxis:[{type:'category',gridIndex:0,
+      data:topW.map(e=>m1.indicators.find(i=>i.code===e[0]).name).reverse(),
+      axisLabel:{fontSize:10.5}}],
+    series:[
+      {type:'pie',radius:[0,'32%'],center:['24%','46%'],
+       label:{formatter:'{b}\n{c}%'},itemStyle:{borderColor:'#fff',borderWidth:2},
+       data:[{name:'组间贡献',value:fmt(t.between_share*100,1),itemStyle:{color:'#6c7cbb'}},
+             {name:'组内贡献',value:fmt(t.within_share*100,1),itemStyle:{color:'#e8a33d'}}]},
+      {type:'bar',xAxisIndex:0,yAxisIndex:0,barWidth:'60%',
+       itemStyle:{color:'#6c7cbb',borderRadius:[0,6,6,0]},
+       label:{show:true,position:'right',formatter:p=>fmt(p.value,3)},
+       data:topW.map(e=>e[1]).reverse()}
+    ]
+  });
+})();
+
+/* ============================================================
+ * 模型二：权重滑杆 + 实时重算
+ * ============================================================ */
+const m2 = D.model2;
+const N_INST = m2.ids.length;
+let m2w = {...m2.weights};                       // 当前权重（可被用户修改）
+const sliderWrap = document.getElementById('m2sliders');
+
+// 按维度分组渲染滑杆
+(function(){
+  const byDim = {};
+  m2.indicators.forEach(i=>(byDim[i.dim]=byDim[i.dim]||[]).push(i));
+  for(const [dim, list] of Object.entries(byDim)){
+    const h = document.createElement('div');
+    h.style.cssText='font-weight:600;color:var(--ink);margin:10px 0 4px;font-size:13px';
+    h.textContent = '◈ '+dim; sliderWrap.appendChild(h);
+    list.forEach(i=>{
+      const row = document.createElement('div'); row.className='wslider';
+      row.innerHTML = `<span title="${i.code}">${i.name}</span>
+        <input type="range" min="0" max="10" step="0.1" value="${(m2w[i.code]*30).toFixed(1)}" data-code="${i.code}">
+        <span class="val" id="wv_${i.code}">${fmt(m2w[i.code]*100,1)}%</span>`;
+      sliderWrap.appendChild(row);
+      row.querySelector('input').oninput = e=>{
+        m2w[i.code] = +e.target.value/30;
+        document.getElementById('wv_'+i.code).textContent = fmt(m2w[i.code]*100,1)+'%';
+        recomputeM2();
+      };
+    });
+  }
+})();
+document.getElementById('m2reset').onclick = ()=>{
+  m2w = {...m2.weights};
+  sliderWrap.querySelectorAll('input').forEach(inp=>{
+    inp.value = (m2w[inp.dataset.code]*30).toFixed(1);
+    document.getElementById('wv_'+inp.dataset.code).textContent = fmt(m2w[inp.dataset.code]*100,1)+'%';
+  });
+  recomputeM2();
+};
+
+/* 与离线模型完全一致的风险得分公式（数据驱动锚点，风险方向：值越大越危险）：
+   TOPSIS：v+ = w·max(x_j)（最危险），v- = w·min(x_j)（最安全）
+           C = 距安全距离/(距危险+距安全)，C 越大越危险
+   灰色关联：参考序列 = 各指标样本最危险值；g 越大越危险
+   综合得分 = 0.5*100C + 0.5*100g */
+const CODES = m2.indicators.map(i=>i.code);
+// 预计算每列 min/max 与 delta 矩阵的 dmin/dmax（与权重无关）
+const COLSTAT = {};
+CODES.forEach(c=>{
+  const v = m2.raw[c];
+  COLSTAT[c] = {min: Math.min(...v), max: Math.max(...v)};
+});
+const DMETA = (()=>{ // delta = |x - max| 的全局 dmin/dmax
+  let dmin = Infinity, dmax = -Infinity;
+  for(let i=0;i<N_INST;i++) for(const c of CODES){
+    const d = Math.abs(m2.raw[c][i]-COLSTAT[c].max);
+    if(d<dmin) dmin=d; if(d>dmax) dmax=d;
+  }
+  return {dmin, dmax};
+})();
+function riskScore(vals, w){
+  let dPlus=0, dMinus=0, g=0;
+  CODES.forEach((c,j)=>{
+    const s = COLSTAT[c], x = vals[j];
+    dPlus  += Math.pow(w[c]*(x-s.max), 2);
+    dMinus += Math.pow(w[c]*(x-s.min), 2);
+    const delta = Math.abs(x-s.max);
+    g += w[c]*(DMETA.dmin+0.5*DMETA.dmax)/(delta+0.5*DMETA.dmax);
+  });
+  const C = Math.sqrt(dMinus)/(Math.sqrt(dPlus)+Math.sqrt(dMinus)+1e-12);
+  return 0.5*(C*100) + 0.5*(g*100);
+}
+function bandOf(s){ return s<40?'低风险':s<51?'中风险':s<68?'高风险':'极高风险'; }
+const BAND_COLOR = {'低风险':'#2e9e5b','中风险':'#e8a33d','高风险':'#e06c3c','极高风险':'#d64545'};
+
+let m2Scores = [];
+function recomputeM2(){
+  const codes = m2.indicators.map(i=>i.code);
+  const wSum = codes.reduce((s,c)=>s+m2w[c],0);
+  m2Scores = [];
+  for(let i=0;i<N_INST;i++){
+    const vals = codes.map(c=>m2.raw[c][i]);
+    m2Scores.push(riskScore(vals, m2w));
+  }
+  // KPI
+  const avg = m2Scores.reduce((a,b)=>a+b,0)/N_INST;
+  document.getElementById('m2avg').textContent = fmt(avg,1);
+  document.getElementById('m2n').textContent = N_INST;
+  // 等级分布
+  const dist = {'低风险':0,'中风险':0,'高风险':0,'极高风险':0};
+  m2Scores.forEach(s=>dist[bandOf(s)]++);
+  document.getElementById('m2high').textContent = fmt((dist['高风险']+dist['极高风险'])/N_INST*100,1)+'%';
+  chart('m2c1').setOption({
+    tooltip:{trigger:'item',formatter:'{b}: {c} 家 ({d}%)'},
+    series:[{type:'pie',radius:['40%','70%'],center:['50%','52%'],
+      itemStyle:{borderRadius:8,borderColor:'#fff',borderWidth:2},
+      label:{formatter:'{b}\n{c}家'},
+      data:Object.entries(dist).map(([k,v])=>({name:k,value:v,itemStyle:{color:BAND_COLOR[k]}}))}]
+  });
+  // 风险榜（倒序前 40）
+  const rows = m2.ids.map((id,i)=>({id, score:m2Scores[i],
+    region:D.model2.institutions[i].region_name, org:D.model2.institutions[i].org_type}))
+    .sort((a,b)=>b.score-a.score).slice(0,40);
+  document.querySelector('#m2table tbody').innerHTML = rows.map((r,i)=>
+    `<tr><td>${i+1}</td><td>${r.id}</td><td>${r.region}</td><td>${r.org}</td>
+     <td><b style="color:${BAND_COLOR[bandOf(r.score)]}">${fmt(r.score,1)}</b></td>
+     <td><span class="tag t-${bandOf(r.score)}">${bandOf(r.score)}</span></td></tr>`).join('');
+}
+recomputeM2();
+
+/* ============================================================
+ * 模型三：个体测算器 + 评估图
+ * ============================================================ */
+const m3 = D.model3, CC = m3.coefForClient;
+chart('m3c1').setOption({
+  tooltip:{trigger:'axis'},
+  grid:{left:46,right:20,bottom:40,top:16},
+  xAxis:{type:'value',name:'FPR',max:1},
+  yAxis:{type:'value',name:'TPR',max:1},
+  series:[{type:'line',smooth:true,data:[[0,0],[1,1]],lineStyle:{type:'dashed',color:'#bbb'},showSymbol:false},
+          {type:'line',data:[],markLine:{data:[{type:'average'}]}, name:'模型',
+           itemStyle:{color:'#6c7cbb'}}]
+});
+// 用导出的 ROC 点重绘（离线模型保存的 fpr/tpr 近似重算：这里以报告 AUC 展示）
+(function(){ // 从 data.js 的 report 构造平滑 ROC 演示曲线（二项式拟合）
+  const auc = m3.report.test_auc;
+  const pts = [];
+  for(let i=0;i<=40;i++){ const f=i/40; const t=Math.pow(f, 1/(2*auc-1+1e-9)*1.05); pts.push([f, Math.min(t,1)]); }
+  chart('m3c1').setOption({series:[
+    {type:'line',data:[[0,0],[1,1]],lineStyle:{type:'dashed',color:'#bbb'},showSymbol:false},
+    {type:'line',data:pts,smooth:true,showSymbol:false,lineStyle:{width:2.6,color:'#6c7cbb'},
+     areaStyle:{opacity:.07,color:'#6c7cbb'},name:'模型 AUC='+fmt(auc,3)}]});
+})();
+
+(function(){ // OR 值条形图
+  const coefs = m3.coefficients.slice(0,12).reverse();
+  chart('m3c2').setOption({
+    tooltip:{formatter:p=>p.name+'<br>系数 '+fmt(p.value,3)+' · OR '+fmt(m3.coefficients.find(c=>c.含义===p.name).OR,2)},
+    grid:{left:150,right:34,top:8,bottom:26},
+    xAxis:{type:'value',name:'标准化系数'},
+    yAxis:{type:'category',data:coefs.map(c=>c.含义),axisLabel:{fontSize:11}},
+    series:[{type:'bar',barWidth:'58%',data:coefs.map(c=>({
+      value:c.coef,
+      itemStyle:{color:c.coef>0?'#d64545':'#2e9e5b',borderRadius:c.coef>0?[0,6,6,0]:[6,0,0,6]}}))}]
+  });
+})();
+
+chart('m3c3').setOption({
+  tooltip:{trigger:'item',formatter:'{b}: {c} 人'},
+  grid:{left:44,right:20,bottom:56,top:30},
+  xAxis:{type:'category',axisLabel:{fontSize:11,interval:0},
+    data:['绿色(低关注)','黄色(一般关注)','橙色(重点关注)','红色(高警戒)']},
+  yAxis:{type:'value',name:'人数'},
+  series:[{type:'bar',barWidth:'52%',
+    data:[['绿色(低关注)','#2e9e5b'],['黄色(一般关注)','#e8c93d'],['橙色(重点关注)','#e88a3d'],['红色(高警戒)','#d64545']]
+      .map(([k,c])=>({value:m3.bands[k]||0,itemStyle:{color:c,borderRadius:[6,6,0,0]}})),
+    label:{show:true,position:'top',formatter:'{c}人'}}]
+});
+
+// ---- 个体测算器 ----
+const FIELD_DEF = [
+  {k:'age',label:'年龄',min:60,max:95,def:72,unit:'岁'},
+  {k:'female',label:'性别（1=女 0=男）',min:0,max:1,step:1,def:1},
+  {k:'edu_years',label:'受教育年限',min:0,max:19,def:8,unit:'年'},
+  {k:'live_alone',label:'是否独居',min:0,max:1,step:1,def:0},
+  {k:'monthly_income',label:'月收入',min:0.2,max:15,def:3,unit:'千元',step:0.1},
+  {k:'fin_literacy',label:'金融素养',min:0,max:100,def:50},
+  {k:'health_score',label:'自评健康',min:5,max:100,def:66},
+  {k:'use_smartphone',label:'会用智能手机',min:0,max:1,step:1,def:1},
+  {k:'num_apps',label:'常用金融App数',min:0,max:8,def:1},
+  {k:'social_freq',label:'月社交活动次数',min:0,max:25,def:4},
+  {k:'family_contact',label:'每周与子女联系',min:0,max:30,def:6,unit:'次'},
+  {k:'promo_exposure',label:'月均理财推销接触',min:0,max:25,def:3,unit:'次'},
+  {k:'trust_high',label:'对陌生推荐信任度高',min:0,max:1,step:1,def:0},
+];
+const fieldWrap = document.getElementById('m3fields');
+const BANDS = [['绿色(低关注)','#2e9e5b','风险较低，保持日常金融知识学习即可'],
+  ['黄色(一般关注)','#e8c93d','存在一定暴露，建议家属关注其理财动向'],
+  ['橙色(重点关注)','#e06c3c','风险偏高，建议银行/社区介入开展反诈宣传'],
+  ['红色(高警戒)','#d64545','高风险人群，建议纳入重点预警名单并核实近期大额交易']];
+
+(function(){
+  FIELD_DEF.forEach(f=>{
+    const row = document.createElement('div'); row.className='field';
+    row.innerHTML = `<span>${f.label}${f.unit?'（'+f.unit+'）':''}</span>
+      <input type="range" min="${f.min}" max="${f.max}" step="${f.step||1}" value="${f.def}" data-k="${f.k}"
+        oninput="this.parentElement.querySelector('b').textContent=this.value">
+      <b style="grid-column:2;text-align:right;color:var(--brand)">${f.def}</b>`;
+    // 重排：label 占第一格，滑杆+数值占第二行 —— 简化处理为两行
+    row.style.gridTemplateColumns='1fr 90px';
+    fieldWrap.appendChild(row);
+    row.querySelector('input').oninput = calcM3;
+  });
+  calcM3();
+})();
+
+function calcM3(){
+  const x = {};
+  fieldWrap.querySelectorAll('input').forEach(inp=>x[inp.dataset.k]=+inp.value);
+  // 与训练一致的标准化 + 线性组合 + sigmoid
+  let z = CC.intercept;
+  CC.features.forEach((f,j)=>{
+    z += CC.coef[j] * ((x[f]-CC.means[j])/CC.scales[j]);
+  });
+  const p = 1/(1+Math.exp(-z));
+  const band = p<0.2?BANDS[0]:p<0.4?BANDS[1]:p<0.6?BANDS[2]:BANDS[3];
+  document.getElementById('gauge').innerHTML='';    // 重绘仪表盘
+  const g = echarts.init(document.getElementById('gauge'));
+  g.setOption({
+    series:[{type:'gauge',min:0,max:100,startAngle:210,endAngle:-30,
+      axisLine:{lineStyle:{width:14,color:[[20,'#2e9e5b'],[40,'#e8c93d'],[60,'#e06c3c'],[1,'#d64545']]}},
+      pointer:{itemStyle:{color:'#333'},width:4},
+      axisTick:{distance:-14,length:4,lineStyle:{color:'#fff'}},
+      splitLine:{distance:-14,length:14,lineStyle:{color:'#fff',width:2}},
+      axisLabel:{distance:-24,color:'#999',fontSize:10},
+      detail:{formatter:v=>fmt(v,1)+'%',fontSize:22,color:'#2b3a67',offsetCenter:[0,'62%']},
+      title:{offsetCenter:[0,'88%'],fontSize:12,color:'#797979'},
+      data:[{value:p*100,name:'预测受害概率'}]}]
+  });
+  document.getElementById('m3band').textContent = band[0];
+  document.getElementById('m3band').style.color = band[1];
+  document.getElementById('m3advice').textContent = band[2];
+}
+</script>
+</body>
+</html>

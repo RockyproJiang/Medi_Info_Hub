@@ -1,0 +1,22 @@
+{
+  "name": "yinling-hub",
+  "private": true,
+  "version": "2.0.0",
+  "description": "医讯通 · 养老金融 · 养老保险 · 医养服务平台",
+  "type": "module",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c green,cyan \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm --workspace server run dev",
+    "dev:web": "npm --workspace web run dev",
+    "build": "npm --workspace web run build",
+    "start": "npm --workspace server run start",
+    "seed": "npm --workspace server run seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

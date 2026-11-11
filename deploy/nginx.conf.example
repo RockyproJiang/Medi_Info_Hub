@@ -1,0 +1,180 @@
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    sendfile on;
+    keepalive_timeout 65;
+    charset utf-8;
+    access_log /var/log/nginx/access.log;
+    error_log  /var/log/nginx/error.log;
+
+    # 上传体积上限（AI 长文本 / 未来文件上传留余量）
+    client_max_body_size 8m;
+
+    # ==================== 端口 80：My_Blog（带 /dist） ====================
+    server {
+        listen 80;
+        server_name localhost;
+        root /home/ubuntu/Documents/projects/My_Blog/dist;
+        index index.html index.htm;
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+    }
+
+    # ==================== 端口 81：My_school（带 /dist） ====================
+    server {
+        listen 81;
+        server_name localhost;
+        root /home/ubuntu/Documents/projects/My_school/dist;
+        index index.html index.htm;
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+        error_page 500 502 503 504 /50x.html;
+        location = /50x.html { root html; }
+    }
+
+    # ==================== 端口 82：python刷题软件（无 /dist） ====================
+    server {
+        listen 82;
+        server_name localhost;
+        root /home/ubuntu/Documents/projects/python刷题软件;
+        index index.html index.htm;
+        location / {
+            try_files $uri $uri/ =404;
+        }
+        location ~* \.(jpg|jpeg|png|gif|ico|css|js)$ {
+            expires 30d;
+            add_header Cache-Control "public, immutable";
+        }
+    }
+
+    # ==================== 端口 83：微观经济学刷题软件（无 /dist） ====================
+    server {
+        listen 83;
+        server_name localhost;
+        root /home/ubuntu/Documents/projects/微观经济学刷题软件;
+        index index.html index.htm;
+        location / {
+            try_files $uri $uri/ =404;
+        }
+    }
+
+    # ==================== 端口 84：近代史刷题软件（无 /dist） ====================
+    server {
+        listen 84;
+        server_name localhost;
+        root /home/ubuntu/Documents/projects/近代史刷题软件;
+        index index.html index.htm;
+        location / {
+            try_files $uri $uri/ =404;
+        }
+        location ~* \.(jpg|jpeg|png|gif|ico|css|js)$ {
+            expires 30d;
+            add_header Cache-Control "public, immutable";
+        }
+    }
+
+    # ==================== 端口 85：慧食图谱app（反向代理） ====================
+    server {
+        listen 85;
+        server_name localhost;
+        location / {
+            proxy_pass http://127.0.0.1:5001;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+
+    # ==================== 端口 86：CakeWeb ====================
+    server {
+        listen 86;
+        server_name localhost;
+        root /home/ubuntu/Documents/projects/CakeWeb;
+        index cakeweb2.html;
+        location / {
+            try_files $uri $uri/ =404;
+        }
+    }
+
+    # ==================== 端口 88：Make_Doll ====================
+    server {
+        listen 88;
+        server_name _;
+        root /var/www/dollmaking;
+        index dollmaking2.html;
+        location / {
+            try_files $uri $uri/ =404;
+            add_header Cache-Control "no-cache, no-store, must-revalidate";
+            add_header Pragma "no-cache";
+            add_header Expires "0";
+        }
+    }
+
+    # ==================== 端口 89：医讯通（前端静态 + /api 反向代理到 Node） ====================
+    server {
+        listen 89;
+        server_name _;
+
+        # 前端构建产物（npm run build 生成）
+        root /home/ubuntu/Documents/projects/new_eld_app/web/dist;
+        index index.html;
+        charset utf-8;
+
+        # 关键：API 请求必须转发给 Node 服务，绝不能落到静态 SPA 回退
+        location /api/ {
+            proxy_pass http://127.0.0.1:8787;
+            proxy_http_version 1.1;
+
+            proxy_set_header Host              $host;
+            proxy_set_header X-Real-IP         $remote_addr;
+            proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Connection        "";
+
+            # AI 对话是 SSE 流式输出：必须关闭缓冲，否则前端拿不到逐字效果
+            proxy_buffering off;
+            proxy_cache off;
+            proxy_set_header X-Accel-Buffering no;
+            chunked_transfer_encoding on;
+
+            # 流式回答可能持续较久，放宽超时
+            proxy_connect_timeout 15s;
+            proxy_send_timeout    300s;
+            proxy_read_timeout    300s;
+        }
+
+        # 带 hash 的静态资源长缓存
+        location /assets/ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            access_log off;
+        }
+
+        # favicon 等
+        location = /favicon.ico {
+            access_log off;
+            log_not_found off;
+        }
+
+        # 前端路由回退（/family、/account 等刷新不 404）
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+    }
+}

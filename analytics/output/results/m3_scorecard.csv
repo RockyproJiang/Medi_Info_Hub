@@ -1,0 +1,14 @@
+﻿feature,含义,min_contribution,max_contribution,score_range
+fin_literacy,金融素养得分（0-100）,-1.847,1.907,271.0
+promo_exposure,月均接触理财推销次数,-0.703,1.99,194.0
+family_contact,每周与子女联系次数,-1.249,0.792,147.0
+age,年龄,-0.501,0.901,101.0
+health_score,自评健康得分（0-100）,-0.513,0.718,89.0
+monthly_income,月收入（千元）,-0.611,0.393,72.0
+trust_high,对陌生推荐信任度高,-0.201,0.706,65.0
+edu_years,受教育年限,-0.518,0.369,64.0
+num_apps,常用金融类App数量,-0.105,0.703,58.0
+social_freq,月社交活动次数,-0.527,0.259,57.0
+live_alone,是否独居,-0.135,0.493,45.0
+female,性别（1=女）,-0.223,0.219,32.0
+use_smartphone,会使用智能手机,-0.175,0.148,23.0

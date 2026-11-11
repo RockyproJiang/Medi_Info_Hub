@@ -1,0 +1,34 @@
+[Unit]
+Description=医讯通 API (Node.js)
+Documentation=file:///home/ubuntu/Documents/projects/new_eld_app/README.md
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/Documents/projects/new_eld_app
+
+# 用绝对路径调用 node（which node 确认一下，常见为 /usr/bin/node）
+ExecStart=/usr/bin/node server/src/index.js
+
+# 崩溃自动重启
+Restart=always
+RestartSec=3
+
+# 环境变量：PORT 等也可以在 server/.env 里写，这里兜底
+Environment=NODE_ENV=production
+Environment=PORT=8787
+
+# 日志进 journald：sudo journalctl -u yinling -f
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=yinling
+
+# 基础加固
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

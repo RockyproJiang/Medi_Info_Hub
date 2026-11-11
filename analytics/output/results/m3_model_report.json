@@ -1,0 +1,21 @@
+{
+  "cv_auc_mean": 0.7953,
+  "cv_auc_std": 0.0588,
+  "test_auc": 0.7688,
+  "test_accuracy": 0.76,
+  "test_recall": 0.6667,
+  "best_threshold": 0.2254,
+  "confusion_matrix": [
+    [
+      237,
+      66
+    ],
+    [
+      24,
+      48
+    ]
+  ],
+  "n_train": 1125,
+  "n_test": 375,
+  "victim_rate": 0.1927
+}
